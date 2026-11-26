@@ -163,10 +163,10 @@ jobs:
           open -n build/PhoneVault.app
           sleep 14
           screencapture -x shot-1-device.png
-          /tmp/input scroll 650 420 -3 40
+          /tmp/input scroll 650 420 -3 120
           sleep 2
           screencapture -x shot-2-device-scrolled.png
-          /tmp/input scroll 650 420 3 40
+          /tmp/input scroll 650 420 3 120
           bash ci/click-row.sh backup
           sleep 3
           screencapture -x shot-3-backup.png

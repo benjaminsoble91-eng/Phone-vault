@@ -20,6 +20,10 @@ import AppKit
 /// Everything needed to start idevicebackup2 once.
 struct JobRequest {
     var kind: OperationKind
+    /// The command-line tool to run.
+    var tool: String = "idevicebackup2"
+    /// Run the tool on a pseudo-terminal (so it flushes every line) or on a plain pipe.
+    var pseudoTerminal: Bool = true
     /// Arguments for idevicebackup2. May contain a password when the installed tool is 1.3.0, so they are never logged.
     var arguments: [String]
     /// Extra environment variables (the passwords, for 1.4.0 and newer).
@@ -444,9 +448,10 @@ extension Model {
     /// Starts idevicebackup2 and follows it until it exits. Main queue only.
     func run(_ job: JobRequest) {
         if busy { return }
-        guard let toolPath = Tools.path("idevicebackup2") else {
+        guard let toolPath = Tools.path(job.tool) else {
+            let install = job.tool == "idevicerestore" ? Model.firmwareInstallCommand : Model.installCommand
             failBeforeStart(kind: job.kind, status: "\(job.kind.title) could not start.",
-                            hint: "idevicebackup2 is not installed. Run \"\(Model.installCommand)\" in Terminal.")
+                            hint: "\(job.tool) is not installed. Run \"\(install)\" in Terminal.")
             return
         }
 
@@ -466,6 +471,7 @@ extension Model {
         cancelRequested = false
         verdict = .unknown
         parser.reset()
+        firmwareParser.reset()
         operationDeviceName = job.deviceName
         operationUDID = job.udid
         operationSecrets = job.secrets.filter { !$0.isEmpty }
@@ -484,7 +490,7 @@ extension Model {
         var slaveFD: Int32 = -1
         var outputPipe: Pipe?
         let readFD: Int32
-        if openpty(&masterFD, &slaveFD, nil, nil, nil) == 0 {
+        if job.pseudoTerminal && openpty(&masterFD, &slaveFD, nil, nil, nil) == 0 {
             let slaveHandle = FileHandle(fileDescriptor: slaveFD, closeOnDealloc: false)
             process.standardOutput = slaveHandle
             process.standardError = slaveHandle
@@ -507,7 +513,7 @@ extension Model {
             busy = false
             operationSecrets = []
             failBeforeStart(kind: job.kind, status: "\(job.kind.title) could not start.",
-                            hint: "idevicebackup2 could not be started: \(error.localizedDescription)")
+                            hint: "\(job.tool) could not be started: \(error.localizedDescription)")
             return
         }
         // Our copy of the terminal's far end has to go, or reading would never see the end of the output.
@@ -592,7 +598,7 @@ extension Model {
     /// Takes a piece of tool output on the main queue.
     func consume(_ text: String, token: Int) {
         guard busy, token == operationToken else { return }
-        let parsed = parser.feed(text)
+        let parsed = operation == .firmware ? firmwareParser.feed(text) : parser.feed(text)
         absorb(parsed)
     }
 
@@ -642,8 +648,13 @@ extension Model {
     /// Called once on the main queue when the tool has exited.
     func finish(code: Int32, rest: String, token: Int) {
         guard token == operationToken else { return }
-        if !rest.isEmpty { absorb(parser.feed(rest)) }
-        absorb(parser.flush())
+        if operation == .firmware {
+            if !rest.isEmpty { absorb(firmwareParser.feed(rest)) }
+            absorb(firmwareParser.flush())
+        } else {
+            if !rest.isEmpty { absorb(parser.feed(rest)) }
+            absorb(parser.flush())
+        }
 
         elapsedTimer?.invalidate()
         elapsedTimer = nil
@@ -680,6 +691,7 @@ extension Model {
             case .encryptionOn: summary = "Backup encryption is now on for \(name). Keep the password safe: without it these backups cannot be restored."
             case .encryptionOff: summary = "Backup encryption is now off for \(name)."
             case .changePassword: summary = "The backup password of \(name) was changed."
+            case .firmware: summary = "iOS was installed on \(name) in \(time). It restarts by itself; leave it plugged in until it shows the setup screen or the Home Screen."
             case .none: summary = "Done."
             }
         case .cancelled:
@@ -687,6 +699,7 @@ extension Model {
             switch kind {
             case .backup: summary = "Backup stopped\(where_) after \(time). The unfinished backup cannot be restored; the next backup continues from it."
             case .restore: summary = "Restore stopped\(where_) after \(time). The phone may be left partly restored: run the restore again."
+            case .firmware: summary = "Installing iOS was stopped after \(time). The device may be left in recovery mode; install again to finish."
             default: summary = "Stopped\(where_). Nothing was changed."
             }
         case .failure, .none:
@@ -696,9 +709,14 @@ extension Model {
             case .encryptionOn: summary = "Backup encryption could not be turned on."
             case .encryptionOff: summary = "Backup encryption could not be turned off."
             case .changePassword: summary = "The backup password could not be changed."
+            case .firmware:
+                summary = "Installing iOS on \(name) failed after \(time)."
+                hint = Model.firmwareHint(logLines)
             case .none: summary = "The job failed."
             }
-            if let known = ErrorExplainer.hint(for: logLines) {
+            if !hint.isEmpty {
+                // Already explained above (installing iOS).
+            } else if let known = ErrorExplainer.hint(for: logLines) {
                 hint = known
             } else if let last = logLines.last, logLines.count > 1 {
                 hint = "The tool reported: \(last)"

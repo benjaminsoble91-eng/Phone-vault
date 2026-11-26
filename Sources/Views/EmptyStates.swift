@@ -6,7 +6,7 @@ import AppKit
 // the tools are not installed, no device is connected, or nothing is selected.
 
 /// Shared layout: icon tile, title, then whatever explains the next step.
-/// Centred in the window when it fits; scrolls only when the window is too short for it.
+/// Centred in the window when it fits; scrolls when the window is too short for it.
 struct EmptyStateLayout<Content: View>: View {
     private let systemImage: String
     private let title: String
@@ -32,13 +32,8 @@ struct EmptyStateLayout<Content: View>: View {
     }
 
     var body: some View {
-        ViewThatFits(in: .vertical) {
+        PageScroll(center: true) {
             column
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-            ScrollView {
-                column
-                    .frame(maxWidth: .infinity)
-            }
         }
     }
 }
@@ -140,6 +135,7 @@ struct NoDeviceView: View {
 /// A device in recovery mode is not listed at all, so the way out is offered here.
 struct RecoveryHelp: View {
     @EnvironmentObject var model: Model
+    @EnvironmentObject var ui: WindowState
 
     private var text: String {
         if model.toolAvailable("irecovery") {
@@ -159,6 +155,21 @@ struct RecoveryHelp: View {
             }
             Button("Exit Recovery Mode") { model.exitRecovery() }
                 .disabled(!model.canStart)
+            Divider()
+            Text("If it will not start normally, install iOS on it. Only one device may be connected while you do this.")
+                .font(.callout)
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+            if model.toolAvailable("idevicerestore") {
+                FirmwareOptions()
+                Button(model.firmwareErase ? "Erase and Install…" : "Install iOS…") {
+                    ui.requestFirmware(model, device: nil)
+                }
+                .disabled(!model.canStart)
+            } else {
+                CommandBox(command: Model.firmwareInstallCommand)
+                Button("Check Again") { model.checkTools() }
+            }
         }
     }
 }

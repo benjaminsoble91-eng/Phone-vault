@@ -1,0 +1,6 @@
+#!/bin/bash
+# Stand-in for idevicerestore on the build machine.
+echo "idevicerestore 1.0.0 (stand-in)"
+echo "Extracting filesystem from IPSW"
+for p in 10.0 35.0 60.0; do printf '\r[=====               ] %5s%% ' $p; sleep 1; done
+sleep 600

@@ -1,5 +1,6 @@
 import SwiftUI
 import AppKit
+import UniformTypeIdentifiers
 
 // WindowState.swift
 // View-side state shared by the window, its sheets and the menu commands:
@@ -50,6 +51,10 @@ enum Confirmation {
     case trash(Backup)
     /// Stopping a restore part-way.
     case stopRestore
+    /// Installing iOS from an IPSW. `udid` nil means a device in recovery mode.
+    case installFirmware(udid: String?, name: String)
+    /// Stopping an iOS install part-way.
+    case stopFirmware
 }
 
 final class WindowState: ObservableObject {
@@ -166,6 +171,8 @@ final class WindowState: ObservableObject {
         guard model.busy, !model.cancelling else { return }
         if model.operation == .restore {
             confirmation = .stopRestore
+        } else if model.operation == .firmware {
+            confirmation = .stopFirmware
         } else {
             model.cancel()
         }
@@ -183,6 +190,8 @@ extension Confirmation {
         case .unpair(let device): return "Unpair “\(device.name)” from this Mac?"
         case .trash(let backup): return "Move the backup of “\(backup.name)” to the Trash?"
         case .stopRestore: return "Stop the restore?"
+        case .installFirmware(_, let name): return "Install iOS on “\(name)”?"
+        case .stopFirmware: return "Stop installing iOS?"
         }
     }
 
@@ -213,6 +222,14 @@ extension Confirmation {
             return what + " is moved to the Trash. You can take it back out until the Trash is emptied; after that it cannot be recovered."
         case .stopRestore:
             return "Stopping now can leave the device with only part of its data restored. You would have to run the restore again from the start."
+        case .installFirmware:
+            let what = model.firmwareLatest ? "The newest iOS version Apple signs for it is downloaded and installed." : "\(model.ipswName) is installed."
+            if model.firmwareErase {
+                return what + " EVERYTHING on the device is erased first: apps, photos, messages and settings. Only a backup can bring them back. Keep it plugged in until it restarts by itself; this can take 15 minutes or more."
+            }
+            return what + " Apps, photos and settings are kept (Update). Back it up first in case anything goes wrong. Keep it plugged in until it restarts by itself; this can take 15 minutes or more."
+        case .stopFirmware:
+            return "Stopping now leaves the device in recovery mode, showing a cable on a black screen. It cannot be used until iOS is installed again."
         }
     }
 
@@ -224,12 +241,15 @@ extension Confirmation {
         case .unpair: return "Unpair"
         case .trash: return "Move to Trash"
         case .stopRestore: return "Stop Restore"
+        case .installFirmware: return Confirmation.firmwareEraseLabel ? "Erase and Install" : "Install"
+        case .stopFirmware: return "Stop Installing"
         }
     }
 
     var keepLabel: String {
         switch self {
         case .stopRestore: return "Keep Restoring"
+        case .stopFirmware: return "Keep Installing"
         default: return "Cancel"
         }
     }
@@ -242,6 +262,59 @@ extension Confirmation {
         case .unpair(let device): model.unpair(device)
         case .trash(let backup): model.trash(backup)
         case .stopRestore: model.cancel()
+        case .installFirmware(let udid, let name): model.startFirmwareInstall(udid: udid, deviceName: name)
+        case .stopFirmware: model.cancel()
+        }
+    }
+}
+
+// MARK: - Installing iOS
+
+extension Confirmation {
+    /// Set just before the install confirmation is shown, so its button can say "Erase and Install".
+    static var firmwareEraseLabel = false
+}
+
+extension WindowState {
+    /// Lets the user pick an IPSW file. Returns true when one was chosen.
+    @discardableResult
+    func chooseIPSW(_ model: Model) -> Bool {
+        let panel = NSOpenPanel()
+        panel.title = "Choose an IPSW"
+        panel.message = "Choose the IPSW file for this device's exact model."
+        panel.prompt = "Choose"
+        panel.canChooseFiles = true
+        panel.canChooseDirectories = false
+        panel.allowsMultipleSelection = false
+        if let type = UTType(filenameExtension: "ipsw") {
+            panel.allowedContentTypes = [type]
+        }
+        let downloads = FileManager.default.urls(for: .downloadsDirectory, in: .userDomainMask).first
+        if !model.ipswPath.isEmpty {
+            panel.directoryURL = URL(fileURLWithPath: model.ipswPath).deletingLastPathComponent()
+        } else if let downloads = downloads {
+            panel.directoryURL = downloads
+        }
+        guard panel.runModal() == .OK, let url = panel.url else { return false }
+        model.ipswPath = url.path
+        model.firmwareLatest = false
+        return true
+    }
+
+    /// Asks for confirmation, then installs iOS. `device` nil means a device in recovery mode.
+    func requestFirmware(_ model: Model, device: Device?) {
+        if !model.firmwareLatest && model.ipswPath.isEmpty {
+            if !chooseIPSW(model) { return }
+        }
+        if let problem = model.firmwareProblem(device: device) {
+            model.failBeforeStart(kind: .firmware, status: "Installing iOS could not start.", hint: problem)
+            return
+        }
+        Confirmation.firmwareEraseLabel = model.firmwareErase
+        if let device = device {
+            confirmation = .installFirmware(udid: device.id, name: device.name)
+        } else {
+            confirmation = .installFirmware(udid: nil, name: "the device in recovery mode")
         }
     }
 }

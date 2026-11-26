@@ -133,6 +133,8 @@ enum OperationKind: String, Equatable {
     case encryptionOn
     case encryptionOff
     case changePassword
+    /// Installing iOS from an IPSW with idevicerestore.
+    case firmware
 
     var title: String {
         switch self {
@@ -142,6 +144,7 @@ enum OperationKind: String, Equatable {
         case .encryptionOn: return "Turning on backup encryption"
         case .encryptionOff: return "Turning off backup encryption"
         case .changePassword: return "Changing the backup password"
+        case .firmware: return "Installing iOS"
         }
     }
 }

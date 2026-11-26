@@ -16,13 +16,14 @@ struct DeviceDetailView: View {
     }
 
     var body: some View {
-        ScrollView {
+        PageScroll {
             VStack(alignment: .leading, spacing: 16) {
                 DeviceHeader(device: device)
                 if device.trusted {
                     DeviceMeters(device: device, details: model.details[device.id])
                     BackupCard(device: device)
                     RestorePanel(context: .ontoDevice(device))
+                    FirmwareCard(device: device)
                 } else {
                     TrustCard(device: device)
                 }

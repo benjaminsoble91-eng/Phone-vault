@@ -224,6 +224,8 @@ enum ToolVerdict {
     /// Checks one output line. The strings are the ones idevicebackup2 prints in 1.3.0, 1.4.0 and newer.
     static func from(line: String) -> ToolVerdict {
         if line.hasSuffix("Successful.") || line.hasSuffix("successfully.") { return .success }
+        // idevicerestore ends a successful install with this line.
+        if line == "DONE" { return .success }
         if line.hasSuffix("Aborted.") || line.contains("User has cancelled the backup process on the device") { return .aborted }
         if line.contains("Backup Failed") || line.contains("Restore Failed") || line.contains("Operation Failed") { return .failure }
         if line.hasPrefix("Could not enable") || line.hasPrefix("Could not disable") || line.hasPrefix("Could not change backup encryption") { return .failure }

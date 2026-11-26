@@ -36,7 +36,7 @@ enum Tools {
     static let required = ["idevice_id", "ideviceinfo", "idevicebackup2"]
 
     /// Tools used by optional features (pairing, restart, shut down, recovery mode).
-    static let optional = ["idevicepair", "idevicediagnostics", "ideviceenterrecovery", "irecovery"]
+    static let optional = ["idevicepair", "idevicediagnostics", "ideviceenterrecovery", "irecovery", "idevicerestore"]
 
     /// Environment variable names idevicebackup2 reads passwords from (1.4.0 and newer).
     static let passwordVariables = ["BACKUP_PASSWORD", "BACKUP_PASSWORD_NEW"]

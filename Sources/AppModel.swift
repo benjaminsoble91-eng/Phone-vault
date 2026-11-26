@@ -146,6 +146,15 @@ final class Model: ObservableObject {
 
     var logLines: [String] = []
     var parser = OutputParser()
+    var firmwareParser = FirmwareParser()
+
+    // MARK: Installing iOS (IPSW)
+    /// Full path of the IPSW file chosen for installing iOS ("" = none chosen).
+    @Published var ipswPath = ""
+    /// Erase the device and install (true) or update and keep its data (false).
+    @Published var firmwareErase = false
+    /// Download and install the newest version Apple signs instead of a chosen file.
+    @Published var firmwareLatest = false
     var current: Process?
     var cancelRequested = false
     var verdict: ToolVerdict = .unknown
@@ -249,7 +258,7 @@ final class Model: ObservableObject {
     /// Looks for the command-line tools and asks idevicebackup2 what it supports.
     func checkTools() {
         let missingRequired = Tools.required.filter { !Tools.exists($0) }
-        let missingOptional = Tools.optional.filter { $0 != "irecovery" && !Tools.exists($0) }
+        let missingOptional = Tools.optional.filter { $0 != "irecovery" && $0 != "idevicerestore" && !Tools.exists($0) }
         missingTools = missingRequired + missingOptional
         toolsMissing = !missingRequired.isEmpty
         if toolsMissing { return }

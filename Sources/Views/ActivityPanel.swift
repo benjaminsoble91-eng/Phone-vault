@@ -70,6 +70,7 @@ enum JobWording {
             case .encryptionOn: return "Turning on backup encryption"
             case .encryptionOff: return "Turning off backup encryption"
             case .changePassword: return "Changing the backup password"
+            case .firmware: return "Installing iOS on" + (target.isEmpty ? " the device" : target)
             case .none: return "Working"
             }
         }
@@ -81,6 +82,7 @@ enum JobWording {
             case .encryptionOn: return "Backup encryption is now on"
             case .encryptionOff: return "Backup encryption is now off"
             case .changePassword: return "Backup password changed"
+            case .firmware: return "iOS installed"
             case .none: return "Finished"
             }
         case .failure:
@@ -90,6 +92,7 @@ enum JobWording {
             case .encryptionOn: return "Backup encryption was not turned on"
             case .encryptionOff: return "Backup encryption was not turned off"
             case .changePassword: return "The backup password was not changed"
+            case .firmware: return "Installing iOS failed"
             case .none: return "Failed"
             }
         case .cancelled:
@@ -97,6 +100,7 @@ enum JobWording {
             case .backup: return "Backup stopped"
             case .restore: return "Restore stopped"
             case .encryptionOn, .encryptionOff, .changePassword: return "Stopped before the change was made"
+            case .firmware: return "Installing iOS stopped"
             case .none: return "Stopped"
             }
         case .none:

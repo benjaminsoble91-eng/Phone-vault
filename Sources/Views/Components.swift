@@ -396,3 +396,28 @@ struct IndeterminateBar: View {
         .accessibilityLabel(Text("Working"))
     }
 }
+
+// MARK: - Page scrolling
+
+/// The scroll container for every page. The content is always at least as tall as the window,
+/// so the page can never be left scrolled past its end when it gets shorter (the cause of a page
+/// stuck under the title bar), and it scrolls normally whenever it is taller than the window.
+struct PageScroll<Content: View>: View {
+    private let center: Bool
+    private let content: Content
+
+    /// - Parameter center: centre short content vertically (empty screens) instead of keeping it at the top.
+    init(center: Bool = false, @ViewBuilder content: () -> Content) {
+        self.center = center
+        self.content = content()
+    }
+
+    var body: some View {
+        GeometryReader { geo in
+            ScrollView(.vertical) {
+                content
+                    .frame(maxWidth: .infinity, minHeight: geo.size.height, alignment: center ? .center : .top)
+            }
+        }
+    }
+}

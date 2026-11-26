@@ -14,7 +14,7 @@ struct BackupDetailView: View {
     }
 
     var body: some View {
-        ScrollView {
+        PageScroll {
             VStack(alignment: .leading, spacing: 16) {
                 BackupHeader(backup: backup)
                 if !backup.complete {
