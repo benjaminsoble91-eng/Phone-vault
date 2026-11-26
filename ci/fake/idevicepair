@@ -1,0 +1,3 @@
+#!/bin/bash
+echo "ERROR: Please accept the trust dialog on the screen of device $2, then attempt to pair again."
+exit 1

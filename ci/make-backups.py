@@ -8,6 +8,8 @@ kinds = [("Test iPhone", "iPhone8,2", "15.8.8"), ("Mini", "iPhone13,1", "26.5.2"
 for i in range(n):
     name, ptype, ver = kinds[i % 3]
     udid = '%040x' % (i + 1)
+    if i == 1:
+        udid = "00008101-000C496202A0001E"
     d = os.path.join(root, udid)
     os.makedirs(d)
     with open(d + '/Info.plist', 'wb') as f:

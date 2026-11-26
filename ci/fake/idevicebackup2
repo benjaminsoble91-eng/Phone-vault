@@ -1,0 +1,13 @@
+#!/bin/bash
+if [ "$1" = "--version" ]; then echo "idevicebackup2 1.4.0"; exit 0; fi
+if [ "$1" = "--help" ]; then echo "  BACKUP_PASSWORD        Backup password"; echo "  BACKUP_PASSWORD_NEW    New backup password"; exit 0; fi
+echo "Started \"com.apple.mobilebackup2\" service on port 49152."
+echo "Negotiated Protocol Version 2.1"
+echo "Starting backup..."
+echo "Requesting backup from device..."
+echo "Full backup mode."
+for p in 4 9 14 19 23 27 31 35 38 41 44 47; do
+  n=$(( p / 2 )); printf '\r['; for i in $(seq 1 50); do if [ $i -le $n ]; then printf '='; else printf ' '; fi; done
+  printf '] %3d%% (%d MB/2.1 GB)     ' $p $(( p * 21 )); sleep 2
+done
+sleep 600

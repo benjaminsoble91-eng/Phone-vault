@@ -136,42 +136,47 @@ jobs:
             theos.log
           if-no-files-found: warn
 
-  compat:
-    name: Run the macOS 26 SDK build on macOS 27 and scroll
-    needs: [swiftc, theos]
+  screens:
+    name: Screenshots with a stand-in phone (macOS 27)
+    needs: [theos]
     runs-on: xcode-27
     continue-on-error: true
     permissions:
       contents: write
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/download-artifact@v4
-        with:
-          name: PhoneVault-swiftc
-          path: old
-      - name: Launch the older-SDK build and scroll with a mouse wheel
-        env:
-          GH_TOKEN: ${{ github.token }}
+      - name: Build
+        run: ./build.sh --build-only
+      - name: Stand-in phone tools and sample backups
         run: |
-          sw_vers
-          brew install libimobiledevice libirecovery || true
+          cp ci/fake/* /opt/homebrew/bin/
           python3 ci/make-backups.py 3
           mkdir -p "$HOME/Library/Application Support/MobileSync/Backup"
           chmod 000 "$HOME/Library/Application Support/MobileSync/Backup"
           swiftc -O ci/input.swift -o /tmp/input
-          ditto -x -k old/PhoneVault-app.zip /tmp/oldapp
-          xattr -cr /tmp/oldapp/PhoneVault.app || true
-          open -n /tmp/oldapp/PhoneVault.app
-          sleep 12
-          screencapture -x shot-compat-1-launch.png
-          /tmp/input scroll 650 400 -3 60
-          /tmp/input scroll 190 300 -3 60
+      - name: Take screenshots
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          xattr -cr build/PhoneVault.app || true
+          open -n build/PhoneVault.app
+          sleep 14
+          screencapture -x shot-1-device.png
+          /tmp/input scroll 650 420 -3 40
           sleep 2
-          screencapture -x shot-compat-2-scrolled-down.png
-          /tmp/input scroll 650 400 3 60
-          /tmp/input scroll 190 300 3 60
+          screencapture -x shot-2-device-scrolled.png
+          /tmp/input scroll 650 420 3 40
+          bash ci/click-row.sh backup
+          sleep 3
+          screencapture -x shot-3-backup.png
+          bash ci/click-row.sh pending
+          sleep 3
+          screencapture -x shot-4-pending.png
+          bash ci/click-row.sh device
           sleep 2
-          screencapture -x shot-compat-3-scrolled-up.png
+          /tmp/input click 909 68
+          sleep 6
+          screencapture -x shot-5-backing-up.png
+          pkill -x idevicebackup2 || true
           pkill -x PhoneVault || true
-          gh release upload latest shot-compat-*.png --clobber
-
+          gh release upload latest shot-*.png --clobber
