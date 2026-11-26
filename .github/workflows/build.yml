@@ -68,26 +68,10 @@ jobs:
       - name: Set up a realistic state (sample backups, locked Finder folder, recovery tool)
         run: |
           brew install libirecovery || true
-          python3 - <<'PY'
-          import plistlib, os, datetime
-          root = os.path.expanduser('~/PhoneVault Backups')
-          samples = [("Test iPhone", "iPhone8,2", "15.8.8"), ("Mini", "iPhone13,1", "26.5.2"), ("iPad", "iPad6,3", "16.7.16")]
-          for i, (name, ptype, ver) in enumerate(samples):
-              udid = '%040x' % (i + 1)
-              d = os.path.join(root, udid)
-              os.makedirs(d, exist_ok=True)
-              with open(d + '/Info.plist', 'wb') as f:
-                  plistlib.dump({"Device Name": name, "Product Type": ptype, "Product Version": ver,
-                                 "Last Backup Date": datetime.datetime(2026, 11, 20 + i),
-                                 "Target Identifier": udid, "Unique Identifier": udid.upper()}, f)
-              with open(d + '/Manifest.plist', 'wb') as f:
-                  plistlib.dump({"IsEncrypted": False}, f)
-              with open(d + '/Status.plist', 'wb') as f:
-                  plistlib.dump({"SnapshotState": "finished", "IsFullBackup": True}, f)
-          PY
+          python3 ci/make-backups.py 3
           mkdir -p "$HOME/Library/Application Support/MobileSync/Backup"
           chmod 000 "$HOME/Library/Application Support/MobileSync/Backup"
-          system_profiler SPDisplaysDataType | grep -i resolution || true
+          swiftc -O ci/input.swift -o /tmp/input
       - name: Launch test and screenshot
         run: |
           APP="$PWD/.theos/obj/macosx/PhoneVault.app"
@@ -97,21 +81,40 @@ jobs:
             echo "SMOKE: PhoneVault is still running 12 seconds after launch"
           else
             echo "SMOKE: PhoneVault is NOT running (crashed or quit at launch)"
-            ls ~/Library/Logs/DiagnosticReports 2>/dev/null | tail -5 || true
             exit 1
           fi
-          osascript -e 'tell application "System Events" to get name of every window of (first process whose name is "PhoneVault")' || true
           screencapture -x screenshot.png || true
-          # Scroll both columns down with a mouse wheel, then back up, to catch stuck scrolling.
-          swiftc -O ci/scroll.swift -o /tmp/scroll || true
-          /tmp/scroll 650 400 -3 40 || true
-          /tmp/scroll 190 300 -3 40 || true
-          sleep 2
-          screencapture -x shot-scrolled-down.png || true
-          /tmp/scroll 650 400 3 40 || true
-          /tmp/scroll 190 300 3 40 || true
-          sleep 2
-          screencapture -x shot-scrolled-up.png || true
+      - name: Scroll tests (content shrinking while scrolled, and reopening)
+        continue-on-error: true
+        run: |
+          APP="$PWD/.theos/obj/macosx/PhoneVault.app"
+          # A: long sidebar, scrolled to the end
+          python3 ci/make-backups.py 30
+          /tmp/input click 873 68
+          sleep 4
+          /tmp/input scroll 190 300 -3 60
+          sleep 1
+          screencapture -x shot-a-long-scrolled.png
+          # B: content shrinks while scrolled down
+          python3 ci/make-backups.py 3
+          /tmp/input click 873 68
+          sleep 5
+          screencapture -x shot-b-shrunk.png
+          /tmp/input scroll 190 300 3 60
+          sleep 1
+          screencapture -x shot-b2-after-scroll-up.png
+          # C: quit while scrolled down, shrink, reopen
+          python3 ci/make-backups.py 30
+          /tmp/input click 873 68
+          sleep 4
+          /tmp/input scroll 190 300 -3 60
+          sleep 1
+          osascript -e 'tell application "PhoneVault" to quit' || pkill -x PhoneVault || true
+          sleep 4
+          python3 ci/make-backups.py 3
+          open -n "$APP"
+          sleep 10
+          screencapture -x shot-c-reopened.png
           pkill -x PhoneVault || true
       - name: Publish release
         env:
@@ -121,8 +124,7 @@ jobs:
           sleep 3
           FILES="PhoneVault.zip"
           [ -f screenshot.png ] && FILES="$FILES screenshot.png"
-          [ -f shot-scrolled-down.png ] && FILES="$FILES shot-scrolled-down.png"
-          [ -f shot-scrolled-up.png ] && FILES="$FILES shot-scrolled-up.png"
+          for f in shot-*.png; do [ -f "$f" ] && FILES="$FILES $f"; done
           gh release create latest $FILES --title "PhoneVault (latest build)" --notes "Built by CI with Theos from commit $GITHUB_SHA." --target "$GITHUB_SHA"
       - uses: actions/upload-artifact@v4
         if: always()
