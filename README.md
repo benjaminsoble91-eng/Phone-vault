@@ -68,6 +68,7 @@ If macOS refuses to open the app because it is from an unidentified developer, r
 - Restore a backup onto the connected phone, including a backup made from a different phone, with options (system files, settings, restart afterwards, skip reinstalling apps, remove items not in the backup, copy first).
 - Restart, shut down, enter recovery mode, and leave recovery mode when `irecovery` is installed.
 - Plain-language explanations when something fails, and the tool's own output in a log.
+- Dark, Light or Match System appearance (View > Appearance). Dark is the default.
 
 Backup passwords are kept in memory only while they are needed. They are never written to the log, the status line or the app's preferences.
 

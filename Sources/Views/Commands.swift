@@ -13,6 +13,9 @@ struct PhoneVaultCommands: Commands {
         // One window only: its sheets and confirmations belong to a single shared WindowState.
         CommandGroup(replacing: .newItem) { }
         SidebarCommands()
+        CommandGroup(after: .sidebar) {
+            AppearanceMenuItems()
+        }
         CommandMenu("Device") {
             DeviceMenuItems(model: model, ui: ui)
         }
