@@ -102,6 +102,16 @@ jobs:
           fi
           osascript -e 'tell application "System Events" to get name of every window of (first process whose name is "PhoneVault")' || true
           screencapture -x screenshot.png || true
+          # Scroll both columns down with a mouse wheel, then back up, to catch stuck scrolling.
+          swiftc -O ci/scroll.swift -o /tmp/scroll || true
+          /tmp/scroll 650 400 -3 40 || true
+          /tmp/scroll 190 300 -3 40 || true
+          sleep 2
+          screencapture -x shot-scrolled-down.png || true
+          /tmp/scroll 650 400 3 40 || true
+          /tmp/scroll 190 300 3 40 || true
+          sleep 2
+          screencapture -x shot-scrolled-up.png || true
           pkill -x PhoneVault || true
       - name: Publish release
         env:
@@ -111,6 +121,8 @@ jobs:
           sleep 3
           FILES="PhoneVault.zip"
           [ -f screenshot.png ] && FILES="$FILES screenshot.png"
+          [ -f shot-scrolled-down.png ] && FILES="$FILES shot-scrolled-down.png"
+          [ -f shot-scrolled-up.png ] && FILES="$FILES shot-scrolled-up.png"
           gh release create latest $FILES --title "PhoneVault (latest build)" --notes "Built by CI with Theos from commit $GITHUB_SHA." --target "$GITHUB_SHA"
       - uses: actions/upload-artifact@v4
         if: always()
