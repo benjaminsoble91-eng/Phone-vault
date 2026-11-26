@@ -38,11 +38,15 @@ jobs:
 
   theos:
     name: Build with Theos, test launch, publish
-    runs-on: macos-latest
+    runs-on: xcode-27
     permissions:
       contents: write
     steps:
       - uses: actions/checkout@v4
+      - name: Show system
+        run: |
+          sw_vers
+          xcodebuild -version
       - name: Install Theos
         run: git clone --recursive --depth 1 --shallow-submodules https://github.com/theos/theos.git "$HOME/theos"
       - name: Build
