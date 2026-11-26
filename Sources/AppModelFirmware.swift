@@ -7,7 +7,8 @@ import Foundation
 
 extension Model {
 
-    static let firmwareInstallCommand = "brew install idevicerestore"
+    /// Homebrew has no idevicerestore package; PhoneVault ships its own copy inside the app.
+    static let firmwareMissingText = "This copy of PhoneVault is missing its built-in idevicerestore, which installs iOS. Download PhoneVault again from its release page."
 
     /// Display name of the chosen IPSW file, or "".
     var ipswName: String {
@@ -27,7 +28,7 @@ extension Model {
     /// - Parameter device: the connected device to install on, or nil for a device in recovery mode.
     func firmwareProblem(device: Device?) -> String? {
         if !toolAvailable("idevicerestore") {
-            return "Installing iOS needs one more tool. Run \"\(Model.firmwareInstallCommand)\" in Terminal, then click Check Again."
+            return Model.firmwareMissingText
         }
         if busy { return "Wait until the current job has finished." }
         if actionBusy { return "Wait until the current action has finished." }

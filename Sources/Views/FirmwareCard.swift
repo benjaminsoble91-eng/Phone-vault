@@ -130,12 +130,12 @@ struct FirmwareToolMissing: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
-            Text("Install iOS from an IPSW file, or the newest version Apple signs, with Update or Erase and Install. This needs one more free tool:")
-                .font(.callout)
-                .foregroundStyle(.secondary)
-                .fixedSize(horizontal: false, vertical: true)
-            CommandBox(command: Model.firmwareInstallCommand)
-            Button("Check Again") { model.checkTools() }
+            Notice(.warning, Model.firmwareMissingText)
+            Button("Open Release Page") {
+                if let url = URL(string: "https://github.com/benjaminsoble91-eng/Phone-vault/releases/latest") {
+                    NSWorkspace.shared.open(url)
+                }
+            }
         }
     }
 }

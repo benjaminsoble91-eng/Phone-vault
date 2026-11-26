@@ -36,8 +36,21 @@ jobs:
             build.log
           if-no-files-found: warn
 
+  idevicerestore:
+    name: Build idevicerestore to bundle
+    runs-on: xcode-27
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build
+        run: bash ci/build-idevicerestore.sh
+      - uses: actions/upload-artifact@v4
+        with:
+          name: idevicerestore
+          path: out
+
   theos:
     name: Build with Theos, test launch, publish
+    needs: [idevicerestore]
     runs-on: xcode-27
     permissions:
       contents: write
@@ -54,6 +67,20 @@ jobs:
           export THEOS="$HOME/theos"
           make FINALPACKAGE=1 2>&1 | tee theos.log
           echo "WARNING COUNT: $(grep -c 'warning:' theos.log || true)"
+      - uses: actions/download-artifact@v4
+        with:
+          name: idevicerestore
+          path: limd-out
+      - name: Bundle idevicerestore into the app
+        run: |
+          APP=.theos/obj/macosx/PhoneVault.app
+          mkdir -p "$APP/Contents/Resources/bin" "$APP/Contents/Resources/lib"
+          cp limd-out/bin/idevicerestore "$APP/Contents/Resources/bin/"
+          cp limd-out/lib/* "$APP/Contents/Resources/lib/" 2>/dev/null || true
+          chmod +x "$APP/Contents/Resources/bin/idevicerestore"
+          for f in "$APP"/Contents/Resources/lib/*.dylib; do [ -f "$f" ] && codesign --force --sign - "$f"; done
+          codesign --force --sign - "$APP/Contents/Resources/bin/idevicerestore"
+          "$APP/Contents/Resources/bin/idevicerestore" --version
       - name: Package app
         run: |
           APP=.theos/obj/macosx/PhoneVault.app
@@ -150,6 +177,7 @@ jobs:
       - name: Stand-in phone tools and sample backups
         run: |
           cp ci/fake/* /opt/homebrew/bin/
+          mkdir -p build/PhoneVault.app/Contents/Resources/bin && cp ci/fake/idevicerestore build/PhoneVault.app/Contents/Resources/bin/
           python3 ci/make-backups.py 3
           mkdir -p "$HOME/Library/Application Support/MobileSync/Backup"
           chmod 000 "$HOME/Library/Application Support/MobileSync/Backup"

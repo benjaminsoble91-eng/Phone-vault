@@ -32,6 +32,10 @@ enum Tools {
     /// Folders searched for the tools, Homebrew on Apple Silicon first.
     static let dirs = ["/opt/homebrew/bin", "/usr/local/bin", "/opt/local/bin", "/usr/bin"]
 
+    /// Tools shipped inside PhoneVault.app (Contents/Resources/bin). idevicerestore is one:
+    /// Homebrew has no package for it, so the build bundles its own copy.
+    static let bundledDir: String? = Bundle.main.resourceURL?.appendingPathComponent("bin").path
+
     /// Tools the app cannot work without.
     static let required = ["idevice_id", "ideviceinfo", "idevicebackup2"]
 
@@ -42,6 +46,11 @@ enum Tools {
     static let passwordVariables = ["BACKUP_PASSWORD", "BACKUP_PASSWORD_NEW"]
 
     static func path(_ name: String) -> String? {
+        // The bundled copy of idevicerestore is preferred: it is built against matching libraries.
+        if name == "idevicerestore", let bundled = bundledDir {
+            let p = bundled + "/" + name
+            if FileManager.default.isExecutableFile(atPath: p) { return p }
+        }
         for d in dirs {
             let p = d + "/" + name
             if FileManager.default.isExecutableFile(atPath: p) { return p }

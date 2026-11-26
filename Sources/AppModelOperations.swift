@@ -449,9 +449,10 @@ extension Model {
     func run(_ job: JobRequest) {
         if busy { return }
         guard let toolPath = Tools.path(job.tool) else {
-            let install = job.tool == "idevicerestore" ? Model.firmwareInstallCommand : Model.installCommand
-            failBeforeStart(kind: job.kind, status: "\(job.kind.title) could not start.",
-                            hint: "\(job.tool) is not installed. Run \"\(install)\" in Terminal.")
+            let hint = job.tool == "idevicerestore"
+                ? Model.firmwareMissingText
+                : "\(job.tool) is not installed. Run \"\(Model.installCommand)\" in Terminal."
+            failBeforeStart(kind: job.kind, status: "\(job.kind.title) could not start.", hint: hint)
             return
         }
 

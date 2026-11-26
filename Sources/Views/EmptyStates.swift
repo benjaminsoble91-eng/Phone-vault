@@ -167,8 +167,7 @@ struct RecoveryHelp: View {
                 }
                 .disabled(!model.canStart)
             } else {
-                CommandBox(command: Model.firmwareInstallCommand)
-                Button("Check Again") { model.checkTools() }
+                Notice(.warning, Model.firmwareMissingText)
             }
         }
     }
