@@ -1,0 +1,65 @@
+name: Build PhoneVault
+
+on:
+  push:
+  workflow_dispatch:
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  swiftc:
+    name: Build with swiftc
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Show toolchain
+        run: |
+          sw_vers
+          xcodebuild -version
+          xcrun swiftc --version
+          xcrun --sdk macosx --show-sdk-version
+      - name: Build
+        run: ./build.sh --build-only 2>&1 | tee build.log
+      - name: Package app
+        run: |
+          file build/PhoneVault.app/Contents/MacOS/PhoneVault
+          codesign --verify --deep --verbose=2 build/PhoneVault.app
+          ditto -c -k --keepParent build/PhoneVault.app PhoneVault-app.zip
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: PhoneVault-swiftc
+          path: |
+            PhoneVault-app.zip
+            build.log
+          if-no-files-found: warn
+
+  theos:
+    name: Build with Theos
+    runs-on: macos-latest
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Theos
+        run: git clone --recursive --depth 1 --shallow-submodules https://github.com/theos/theos.git "$HOME/theos"
+      - name: Build
+        run: |
+          export THEOS="$HOME/theos"
+          make FINALPACKAGE=1 2>&1 | tee theos.log
+      - name: Package app
+        run: |
+          APP=.theos/obj/macosx/PhoneVault.app
+          ls -R "$APP" | head -40
+          file "$APP/Contents/MacOS/PhoneVault"
+          codesign --force --deep --sign - "$APP"
+          ditto -c -k --keepParent "$APP" PhoneVault-theos-app.zip
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: PhoneVault-theos
+          path: |
+            PhoneVault-theos-app.zip
+            theos.log
+          if-no-files-found: warn
