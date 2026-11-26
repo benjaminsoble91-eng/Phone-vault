@@ -26,6 +26,11 @@ TARGET_CODESIGN_FLAGS = --force --sign -
 
 include $(THEOS)/makefiles/common.mk
 
+# Theos' bundled header folders (include, vendor/include) are written for iOS. Their IOKit headers
+# clash with the macOS SDK's own when Swift imports AppKit ("could not build Objective-C module
+# 'CoreGraphics'"). A macOS Swift app needs none of them, so keep them off the Swift search path.
+_THEOS_INTERNAL_IFLAGS_SWIFT =
+
 APPLICATION_NAME = PhoneVault
 
 # Every Swift file under Sources/, however deep (Sources/*.swift, Sources/Views/*.swift, ...).
