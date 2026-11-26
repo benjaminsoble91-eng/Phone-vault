@@ -61,6 +61,29 @@ jobs:
           ditto -c -k --keepParent "$APP" PhoneVault.zip
       - name: Install the phone tools (so the app shows its normal screen)
         run: brew install libimobiledevice || true
+      - name: Set up a realistic state (sample backups, locked Finder folder, recovery tool)
+        run: |
+          brew install libirecovery || true
+          python3 - <<'PY'
+          import plistlib, os, datetime
+          root = os.path.expanduser('~/PhoneVault Backups')
+          samples = [("Test iPhone", "iPhone8,2", "15.8.8"), ("Mini", "iPhone13,1", "26.5.2"), ("iPad", "iPad6,3", "16.7.16")]
+          for i, (name, ptype, ver) in enumerate(samples):
+              udid = '%040x' % (i + 1)
+              d = os.path.join(root, udid)
+              os.makedirs(d, exist_ok=True)
+              with open(d + '/Info.plist', 'wb') as f:
+                  plistlib.dump({"Device Name": name, "Product Type": ptype, "Product Version": ver,
+                                 "Last Backup Date": datetime.datetime(2026, 11, 20 + i),
+                                 "Target Identifier": udid, "Unique Identifier": udid.upper()}, f)
+              with open(d + '/Manifest.plist', 'wb') as f:
+                  plistlib.dump({"IsEncrypted": False}, f)
+              with open(d + '/Status.plist', 'wb') as f:
+                  plistlib.dump({"SnapshotState": "finished", "IsFullBackup": True}, f)
+          PY
+          mkdir -p "$HOME/Library/Application Support/MobileSync/Backup"
+          chmod 000 "$HOME/Library/Application Support/MobileSync/Backup"
+          system_profiler SPDisplaysDataType | grep -i resolution || true
       - name: Launch test and screenshot
         run: |
           APP="$PWD/.theos/obj/macosx/PhoneVault.app"
