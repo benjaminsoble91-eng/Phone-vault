@@ -37,9 +37,10 @@ jobs:
           if-no-files-found: warn
 
   theos:
-    name: Build with Theos
+    name: Build with Theos, test launch, publish
     runs-on: macos-latest
-    continue-on-error: true
+    permissions:
+      contents: write
     steps:
       - uses: actions/checkout@v4
       - name: Install Theos
@@ -48,18 +49,48 @@ jobs:
         run: |
           export THEOS="$HOME/theos"
           make FINALPACKAGE=1 2>&1 | tee theos.log
+          echo "WARNING COUNT: $(grep -c 'warning:' theos.log || true)"
       - name: Package app
         run: |
           APP=.theos/obj/macosx/PhoneVault.app
-          ls -R "$APP" | head -40
+          find "$APP" -maxdepth 3 | sort
+          plutil -lint "$APP/Contents/Info.plist"
           file "$APP/Contents/MacOS/PhoneVault"
           codesign --force --deep --sign - "$APP"
-          ditto -c -k --keepParent "$APP" PhoneVault-theos-app.zip
+          codesign --verify --deep --verbose=2 "$APP"
+          ditto -c -k --keepParent "$APP" PhoneVault.zip
+      - name: Install the phone tools (so the app shows its normal screen)
+        run: brew install libimobiledevice || true
+      - name: Launch test and screenshot
+        run: |
+          APP="$PWD/.theos/obj/macosx/PhoneVault.app"
+          open -n "$APP"
+          sleep 12
+          if pgrep -x PhoneVault >/dev/null; then
+            echo "SMOKE: PhoneVault is still running 12 seconds after launch"
+          else
+            echo "SMOKE: PhoneVault is NOT running (crashed or quit at launch)"
+            ls ~/Library/Logs/DiagnosticReports 2>/dev/null | tail -5 || true
+            exit 1
+          fi
+          osascript -e 'tell application "System Events" to get name of every window of (first process whose name is "PhoneVault")' || true
+          screencapture -x screenshot.png || true
+          pkill -x PhoneVault || true
+      - name: Publish release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release delete latest --yes --cleanup-tag 2>/dev/null || true
+          sleep 3
+          FILES="PhoneVault.zip"
+          [ -f screenshot.png ] && FILES="$FILES screenshot.png"
+          gh release create latest $FILES --title "PhoneVault (latest build)" --notes "Built by CI with Theos from commit $GITHUB_SHA." --target "$GITHUB_SHA"
       - uses: actions/upload-artifact@v4
         if: always()
         with:
           name: PhoneVault-theos
           path: |
-            PhoneVault-theos-app.zip
+            PhoneVault.zip
+            screenshot.png
             theos.log
           if-no-files-found: warn
