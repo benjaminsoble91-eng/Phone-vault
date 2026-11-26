@@ -173,6 +173,9 @@ final class Model: ObservableObject {
     var sizing = Set<String>()
     let sizeQueue = DispatchQueue(label: "local.phonevault.sizes", qos: .utility)
     var quitObserver: NSObjectProtocol?
+    /// Whether PhoneVault is the frontmost app. While it is not, device polling slows down.
+    var appActive = true
+    var activityObservers: [NSObjectProtocol] = []
 
     // MARK: Start-up
 
@@ -199,6 +202,15 @@ final class Model: ObservableObject {
         // Do not leave a backup tool running behind our back when the app quits.
         // The name is spelled out (it is NSApplication.willTerminateNotification) so this class does not
         // have to touch a main-actor type from its initialiser.
+        // Poll less often while another app is in front (names spelled out for the same reason as below).
+        for (name, active) in [("NSApplicationDidBecomeActiveNotification", true), ("NSApplicationDidResignActiveNotification", false)] {
+            let token = NotificationCenter.default.addObserver(forName: Notification.Name(name), object: nil, queue: .main) { [weak self] _ in
+                guard let self = self else { return }
+                self.appActive = active
+                if active { self.refreshDevices() }
+            }
+            activityObservers.append(token)
+        }
         quitObserver = NotificationCenter.default.addObserver(forName: Notification.Name("NSApplicationWillTerminateNotification"),
                                                               object: nil, queue: .main) { [weak self] _ in
             if let p = self?.current, p.isRunning { p.interrupt() }
@@ -258,11 +270,18 @@ final class Model: ObservableObject {
     func refreshDevices(forceDetails: Bool = false) {
         if forceDetails { wantDetails = true }
         if busy || actionBusy || refreshing || toolsMissing { return }
-        refreshing = true
         refreshTick += 1
+        // In the background, look every third tick (about every 9 seconds) unless asked to look now.
+        if !appActive && !forceDetails && refreshTick % 3 != 0 { return }
+        refreshing = true
         let fetchAll = wantDetails || refreshTick % 5 == 1
         wantDetails = false
         let known = Set(details.keys)
+        // A trusted device whose basics were read recently is not asked again on every tick.
+        var cached: [String: Device] = [:]
+        if !fetchAll {
+            for device in devices where device.trusted { cached[device.id] = device }
+        }
         // Keep showing a declined or unpaired device as it was instead of asking it (and so prompting) again.
         var declined: [String: Device] = [:]
         for device in devices where quietDevices.contains(device.id) { declined[device.id] = device }
@@ -274,7 +293,7 @@ final class Model: ObservableObject {
                     found.append(kept)
                     continue
                 }
-                let device = DeviceQuery.device(udid: udid)
+                let device = cached[udid] ?? DeviceQuery.device(udid: udid)
                 found.append(device)
                 if device.trusted && (fetchAll || !known.contains(udid)) {
                     fresh[udid] = DeviceQuery.details(udid: udid)

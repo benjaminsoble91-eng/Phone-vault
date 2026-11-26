@@ -158,6 +158,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
+          set +e
           xattr -cr build/PhoneVault.app || true
           open -n build/PhoneVault.app
           sleep 14

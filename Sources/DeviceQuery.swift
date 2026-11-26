@@ -95,28 +95,39 @@ enum DeviceQuery {
                       trust: state)
     }
 
-    /// Battery, storage, backup encryption and Find My for a trusted device. Four short tool runs.
+    /// Battery, storage, backup encryption and Find My for a trusted device.
+    /// The four short tool runs happen at the same time, so this takes about as long as the slowest one.
     static func details(udid: String) -> DeviceDetails {
+        let domains = ["com.apple.mobile.battery", "com.apple.disk_usage", "com.apple.mobile.backup", "com.apple.fmip"]
+        var answers = [[String: Any]?](repeating: nil, count: domains.count)
+        let lock = NSLock()
+        DispatchQueue.concurrentPerform(iterations: domains.count) { index in
+            let values = plist(udid: udid, domain: domains[index]).values
+            lock.lock()
+            answers[index] = values
+            lock.unlock()
+        }
+
         var details = DeviceDetails()
 
-        if let battery = plist(udid: udid, domain: "com.apple.mobile.battery").values {
+        if let battery = answers[0] {
             if let level = number(battery["BatteryCurrentCapacity"]) {
                 details.batteryPercent = min(max(Int(level), 0), 100)
             }
             details.charging = battery["BatteryIsCharging"] as? Bool
         }
 
-        if let disk = plist(udid: udid, domain: "com.apple.disk_usage").values {
+        if let disk = answers[1] {
             details.storageTotal = number(disk["TotalDiskCapacity"]) ?? number(disk["TotalDataCapacity"])
             details.storageFree = number(disk["AmountDataAvailable"]) ?? number(disk["TotalDataAvailable"])
         }
 
-        if let backup = plist(udid: udid, domain: "com.apple.mobile.backup").values {
+        if let backup = answers[2] {
             // idevicebackup2 itself reads this key to decide whether a backup will be encrypted.
             details.backupEncryption = (backup["WillEncrypt"] as? Bool) ?? false
         }
 
-        if let fmip = plist(udid: udid, domain: "com.apple.fmip").values {
+        if let fmip = answers[3] {
             details.findMy = fmip["IsAssociated"] as? Bool
         }
 

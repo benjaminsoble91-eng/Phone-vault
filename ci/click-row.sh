@@ -20,7 +20,7 @@ tell application "System Events"
       if t is not "" then
         set p to position of r
         set s to size of r
-        return ((item 1 of p) + 60) & "," & ((item 2 of p) + (item 2 of s) / 2)
+        return ((((item 1 of p) + 60) as integer) as text) & "," & ((((item 2 of p) + (item 2 of s) / 2) as integer) as text)
       end if
     end repeat
   end tell
