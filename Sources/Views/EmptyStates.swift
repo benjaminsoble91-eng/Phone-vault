@@ -5,7 +5,8 @@ import AppKit
 // What the window shows when there is nothing to work with yet:
 // the tools are not installed, no device is connected, or nothing is selected.
 
-/// Shared layout: big symbol, title, then whatever explains the next step.
+/// Shared layout: icon tile, title, then whatever explains the next step.
+/// Centred in the window when it fits; scrolls only when the window is too short for it.
 struct EmptyStateLayout<Content: View>: View {
     private let systemImage: String
     private let title: String
@@ -17,22 +18,27 @@ struct EmptyStateLayout<Content: View>: View {
         self.content = content()
     }
 
+    private var column: some View {
+        VStack(alignment: .leading, spacing: 18) {
+            IconTile(systemImage: systemImage, size: 60)
+            Text(title)
+                .font(.title.weight(.semibold))
+                .fixedSize(horizontal: false, vertical: true)
+                .accessibilityAddTraits(.isHeader)
+            content
+        }
+        .padding(36)
+        .frame(maxWidth: 560, alignment: .leading)
+    }
+
     var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 16) {
-                Image(systemName: systemImage)
-                    .font(.system(size: 44, weight: .light))
-                    .foregroundStyle(.secondary)
-                    .accessibilityHidden(true)
-                Text(title)
-                    .font(.title2.weight(.semibold))
-                    .fixedSize(horizontal: false, vertical: true)
-                    .accessibilityAddTraits(.isHeader)
-                content
+        ViewThatFits(in: .vertical) {
+            column
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+            ScrollView {
+                column
+                    .frame(maxWidth: .infinity)
             }
-            .padding(32)
-            .frame(maxWidth: 560, alignment: .leading)
-            .frame(maxWidth: .infinity)
         }
     }
 }
@@ -94,11 +100,14 @@ struct NoDeviceView: View {
 
     var body: some View {
         EmptyStateLayout(systemImage: "cable.connector", title: "Connect an iPhone or iPad") {
-            VStack(alignment: .leading, spacing: 10) {
+            VStack(alignment: .leading, spacing: 12) {
                 StepLine(number: 1, text: "Plug the device into this Mac with a USB cable that can carry data.")
                 StepLine(number: 2, text: "Unlock it with its passcode.")
                 StepLine(number: 3, text: "When it asks “Trust This Computer?”, tap Trust and enter the passcode.")
             }
+            .padding(16)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .modifier(CardBackground())
             HStack(spacing: 10) {
                 ProgressView()
                     .controlSize(.small)
@@ -106,15 +115,20 @@ struct NoDeviceView: View {
                 Text("Looking for devices every few seconds…")
                     .font(.callout)
                     .foregroundStyle(.secondary)
-            }
-            HStack(spacing: 10) {
+                Spacer(minLength: 8)
                 Button("Look Again Now") { model.refreshDevices(forceDetails: true) }
                     .disabled(!model.canStart)
             }
-            Divider()
-            RecoveryHelp()
+            DisclosureGroup {
+                RecoveryHelp()
+                    .padding(.top, 8)
+            } label: {
+                Text("Device stuck on a black screen with a cable?")
+                    .font(.callout)
+            }
             if !model.backups.isEmpty {
-                Text("Your backups are listed on the left. You can open, archive or remove them without a device connected.")
+                Label("Your backups are on the left. You can open, archive or remove them without a device connected.",
+                      systemImage: "sidebar.left")
                     .font(.callout)
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
@@ -129,9 +143,9 @@ struct RecoveryHelp: View {
 
     private var text: String {
         if model.toolAvailable("irecovery") {
-            return "Is the device showing a cable on a black screen? It is in recovery mode and does not appear in the list. PhoneVault can tell it to start normally."
+            return "That screen means recovery mode, and a device in recovery mode is not listed. PhoneVault can tell it to start normally."
         }
-        return "Is the device showing a cable on a black screen? It is in recovery mode and does not appear in the list. To let PhoneVault start it normally, install one more tool, then click Exit Recovery Mode:"
+        return "That screen means recovery mode, and a device in recovery mode is not listed. To let PhoneVault start it normally, install one more tool, then click Exit Recovery Mode:"
     }
 
     var body: some View {

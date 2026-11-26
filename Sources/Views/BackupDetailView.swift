@@ -40,11 +40,7 @@ struct BackupHeader: View {
 
     var body: some View {
         HStack(alignment: .top, spacing: 16) {
-            Image(systemName: "externaldrive")
-                .font(.system(size: 42, weight: .light))
-                .foregroundStyle(.secondary)
-                .frame(width: 58)
-                .accessibilityHidden(true)
+            IconTile(systemImage: "clock.arrow.circlepath", tint: .indigo)
             VStack(alignment: .leading, spacing: 6) {
                 Text("Backup of " + backup.name)
                     .font(.title.weight(.semibold))

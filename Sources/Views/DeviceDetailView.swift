@@ -50,11 +50,8 @@ struct DeviceHeader: View {
 
     var body: some View {
         HStack(alignment: .top, spacing: 16) {
-            Image(systemName: Look.symbol(deviceClass: device.deviceClass, model: device.model + " " + device.productType))
-                .font(.system(size: 46, weight: .light))
-                .foregroundStyle(.secondary)
-                .frame(width: 58)
-                .accessibilityHidden(true)
+            IconTile(systemImage: Look.symbol(deviceClass: device.deviceClass, model: device.model + " " + device.productType),
+                     tint: device.trusted ? .accentColor : .orange)
             VStack(alignment: .leading, spacing: 6) {
                 Text(device.name)
                     .font(.title.weight(.semibold))
@@ -204,7 +201,14 @@ struct BatteryTile: View {
     }
 
     var body: some View {
-        MeterTile(title: "Battery", systemImage: symbol, value: value, caption: caption, fraction: fraction)
+        MeterTile(title: "Battery", systemImage: symbol, value: value, caption: caption, fraction: fraction, tint: tint)
+    }
+
+    private var tint: Color {
+        guard let percent = details?.batteryPercent else { return .accentColor }
+        if details?.charging == true || percent >= 40 { return .green }
+        if percent >= 20 { return .orange }
+        return .red
     }
 }
 
@@ -229,7 +233,14 @@ struct StorageTile: View {
     }
 
     var body: some View {
-        MeterTile(title: "Storage", systemImage: "internaldrive", value: value, caption: caption, fraction: fraction)
+        MeterTile(title: "Storage", systemImage: "internaldrive", value: value, caption: caption, fraction: fraction, tint: tint)
+    }
+
+    private var tint: Color {
+        guard let fraction = fraction else { return .accentColor }
+        if fraction >= 0.95 { return .red }
+        if fraction >= 0.85 { return .orange }
+        return .accentColor
     }
 }
 

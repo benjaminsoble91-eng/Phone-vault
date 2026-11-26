@@ -1,4 +1,4 @@
 #!/bin/bash
 # Stand-in for the real tool on the build machine: two phones, one trusted, one waiting for Trust.
-echo "00008101000C496202A0001E (USB)"
+echo "00008101-000C496202A0001E (USB)"
 echo "5b98f05085af366b6c9d6ef44537011a30aa4a33 (USB)"

@@ -183,24 +183,31 @@ struct FinderAccessNotice: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            Label("Hidden by macOS", systemImage: "lock.shield")
-                .font(.callout.weight(.medium))
-            Text(text)
-                .font(.caption)
+        HStack(alignment: .center, spacing: 8) {
+            Image(systemName: "lock.fill")
                 .foregroundStyle(.secondary)
-                .fixedSize(horizontal: false, vertical: true)
-            Text("In the list that opens, turn on PhoneVault, then quit and reopen it.")
-                .font(.caption)
-                .foregroundStyle(.secondary)
-                .fixedSize(horizontal: false, vertical: true)
-            HStack(spacing: 8) {
+                .frame(width: 22)
+                .accessibilityHidden(true)
+            VStack(alignment: .leading, spacing: 1) {
+                Text("Hidden by macOS")
+                    .lineLimit(1)
+                Text("Needs Full Disk Access")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+            }
+            Spacer(minLength: 4)
+            Menu {
                 Button("Open Privacy Settings") { model.openFullDiskAccessSettings() }
                 Button("Check Again") { model.loadBackups() }
+            } label: {
+                Text("Allow")
             }
-            .controlSize(.small)
+            .menuStyle(.borderlessButton)
+            .fixedSize()
         }
-        .padding(.vertical, 4)
+        .padding(.vertical, 3)
+        .help(text + " In the list that opens, turn on PhoneVault, then quit and reopen it.")
     }
 }
 

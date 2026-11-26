@@ -114,12 +114,12 @@ struct CardBackground: ViewModifier {
     func body(content: Content) -> some View {
         content
             .background(
-                RoundedRectangle(cornerRadius: 10, style: .continuous)
-                    .fill(Color.primary.opacity(0.04))
+                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                    .fill(Color.primary.opacity(0.045))
             )
             .overlay(
-                RoundedRectangle(cornerRadius: 10, style: .continuous)
-                    .strokeBorder(Color.primary.opacity(0.10), lineWidth: 1)
+                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                    .strokeBorder(Color.primary.opacity(0.08), lineWidth: 1)
             )
     }
 }
@@ -272,6 +272,7 @@ struct Pill: View {
 /// A thin filled bar, 0...1.
 struct CapacityBar: View {
     let fraction: Double
+    var tint: Color = .accentColor
 
     private var clamped: CGFloat {
         return CGFloat(min(max(fraction, 0), 1))
@@ -282,7 +283,7 @@ struct CapacityBar: View {
             ZStack(alignment: .leading) {
                 Capsule().fill(Color.primary.opacity(0.12))
                 Capsule()
-                    .fill(Color.accentColor)
+                    .fill(tint.gradient)
                     .frame(width: max(geo.size.width * clamped, 6))
             }
         }
@@ -299,6 +300,7 @@ struct MeterTile: View {
     let caption: String
     /// 0...1; nil hides the bar.
     let fraction: Double?
+    var tint: Color = .accentColor
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
@@ -311,7 +313,7 @@ struct MeterTile: View {
                 .lineLimit(1)
                 .minimumScaleFactor(0.7)
             if let fraction = fraction {
-                CapacityBar(fraction: fraction)
+                CapacityBar(fraction: fraction, tint: tint)
             }
             Text(caption)
                 .font(.caption)
@@ -343,5 +345,54 @@ struct CommandBox: View {
             RoundedRectangle(cornerRadius: 7, style: .continuous)
                 .fill(Color.primary.opacity(0.06))
         )
+    }
+}
+
+// MARK: - Icon tile and indeterminate bar
+
+/// A rounded, tinted square holding a white symbol. Used at the top of each page.
+struct IconTile: View {
+    let systemImage: String
+    var tint: Color = .accentColor
+    var size: CGFloat = 64
+
+    var body: some View {
+        RoundedRectangle(cornerRadius: size * 0.24, style: .continuous)
+            .fill(tint.gradient)
+            .frame(width: size, height: size)
+            .overlay(
+                Image(systemName: systemImage)
+                    .font(.system(size: size * 0.46, weight: .regular))
+                    .foregroundStyle(.white)
+            )
+            .shadow(color: tint.opacity(0.35), radius: 6, x: 0, y: 3)
+            .accessibilityHidden(true)
+    }
+}
+
+/// A slim bar with a moving highlight, for work whose total is not known yet.
+/// (The system's own indeterminate bar can look like a full, finished bar.)
+struct IndeterminateBar: View {
+    var tint: Color = .accentColor
+
+    var body: some View {
+        TimelineView(.animation) { timeline in
+            GeometryReader { geo in
+                let t = timeline.date.timeIntervalSinceReferenceDate
+                let phase = CGFloat(t.truncatingRemainder(dividingBy: 1.6) / 1.6)
+                let width = geo.size.width
+                let segment = max(width * 0.28, 40)
+                ZStack(alignment: .leading) {
+                    Capsule().fill(Color.primary.opacity(0.12))
+                    Capsule()
+                        .fill(tint.gradient)
+                        .frame(width: segment)
+                        .offset(x: -segment + (width + segment) * phase)
+                }
+                .clipShape(Capsule())
+            }
+        }
+        .frame(height: 6)
+        .accessibilityLabel(Text("Working"))
     }
 }

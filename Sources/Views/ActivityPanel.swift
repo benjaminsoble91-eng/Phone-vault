@@ -203,9 +203,7 @@ struct JobProgressBar: View {
                     .monospacedDigit()
                     .frame(width: 44, alignment: .trailing)
             } else {
-                ProgressView()
-                    .progressViewStyle(.linear)
-                    .accessibilityLabel(Text("Working"))
+                IndeterminateBar()
             }
         }
     }

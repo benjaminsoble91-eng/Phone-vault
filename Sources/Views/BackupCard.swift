@@ -13,12 +13,11 @@ struct BackupCard: View {
     var body: some View {
         Card("Back Up", systemImage: "arrow.down.doc") {
             LastBackupLine(device: device)
+            BackupStartRow(device: device)
             Divider()
             DestinationRows()
             Divider()
             EncryptionRow(device: device)
-            Divider()
-            BackupStartRow(device: device)
         }
     }
 }

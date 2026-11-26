@@ -135,8 +135,17 @@ struct DetailView: View {
         return model.backups.first { $0.id == id }
     }
 
+    private var pageID: String {
+        switch ui.selection {
+        case .some(.device(let id)): return "device-" + id
+        case .some(.backup(let id)): return "backup-" + id
+        case .none: return model.devices.isEmpty ? "none" : "nothing-selected"
+        }
+    }
+
     var body: some View {
         page
+            .id(pageID)
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .safeAreaInset(edge: .bottom, spacing: 0) {
                 ActivityPanel()
